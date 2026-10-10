@@ -1,6 +1,6 @@
 """
 PathPilot AI - SerpApi Search Tools: News Search Integration
-Wraps official `serpapi-search-tools` news_search function.
+Wraps official `serpapi-search-tools` news_search function with resilient error handling.
 """
 
 import asyncio
@@ -45,29 +45,44 @@ class NewsSearchClient:
         try:
             self._search_fn = news_search(**init_kwargs)
         except Exception as e:
-            logger.warning("Failed to initialize news_search tool: %s", e)
+            logger.warning("Failed to initialize news_search tool: %s", str(e))
             self._search_fn = None
 
     def _execute_sync(self, query: str, **kwargs: Any) -> Dict[str, Any]:
-        """Synchronously execute news_search."""
+        """Synchronously execute news_search with safe error boundaries."""
+        if not self.api_key:
+            logger.warning("News search aborted: SERPAPI_API_KEY is not configured.")
+            return {"news_results": [], "warning": "Credentials missing"}
+
         if not self._search_fn:
-            raise RuntimeError("News search function is not initialized. Check SerpApi API key.")
+            raise RuntimeError("News search tool is uninitialized.")
 
-        call_params = {"q": query}
-        if kwargs:
-            call_params.update(kwargs)
+        query = (query or "").strip()
+        if not query:
+            return {"news_results": []}
 
-        raw_result = self._search_fn(call_params)
+        try:
+            raw_result = self._search_fn(query=query)
+        except Exception as e:
+            logger.error("News search failed: %s", str(e))
+            return {"news_results": [], "error": "Search execution failed"}
 
         if isinstance(raw_result, str):
             try:
                 return json.loads(raw_result)
             except json.JSONDecodeError:
-                return {"raw_text": raw_result}
+                return {"raw_text": raw_result, "news_results": []}
         elif isinstance(raw_result, dict):
             return raw_result
-        return {"data": raw_result}
+        return {"data": raw_result, "news_results": []}
 
     async def search(self, query: str, **kwargs: Any) -> Dict[str, Any]:
-        """Execute news_search asynchronously via asyncio.to_thread."""
-        return await asyncio.to_thread(self._execute_sync, query, **kwargs)
+        """Execute news_search asynchronously via asyncio.to_thread with timeout handling."""
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(self._execute_sync, query, **kwargs),
+                timeout=18.0,
+            )
+        except asyncio.TimeoutError:
+            logger.warning("News search query timed out after 18 seconds.")
+            return {"news_results": [], "error": "Search request timed out"}

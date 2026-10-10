@@ -38,15 +38,20 @@ export function generateDeterministicEvidenceAnalysis(
   opp: Opportunity,
   profile?: StudentProfile
 ): GroundedEvidenceAnalysis {
+  const desc = opp.description || "";
+  const domain = opp.sourceDomain || "official source";
+  const matched = opp.matchBreakdown?.matchedSkills || opp.skills || [];
+  const reqs = opp.requirements || [];
+
   const supportedClaims = [
     {
       claim: `Role/Opportunity title "${opp.title}" hosted by ${opp.organization}.`,
-      sourceText: opp.evidenceItems[0]?.sourceSnippet || opp.description.slice(0, 200),
+      sourceText: opp.evidenceItems?.[0]?.sourceSnippet || desc.slice(0, 200) || opp.title,
       significance: "Directly verified against indexed search listing.",
     },
     {
-      claim: `Categorized as ${opp.category} with location: ${opp.location}.`,
-      sourceText: `Source domain: ${opp.sourceDomain}. Mode: ${opp.workMode}.`,
+      claim: `Categorized as ${opp.category} with location: ${opp.location || "Flexible"}.`,
+      sourceText: `Source domain: ${domain}. Mode: ${opp.workMode || "unspecified"}.`,
       significance: "Structural parameter retrieved from live search metadata.",
     },
   ];
@@ -68,7 +73,7 @@ export function generateDeterministicEvidenceAnalysis(
   if (profile?.workMode === "remote" && opp.workMode === "on-site") {
     potentialIneligibilities.push("In-person attendance requirement conflicts with your remote work preference.");
   }
-  if (opp.requirements.some((r) => r.toLowerCase().includes("graduate") && profile?.educationLevel === "undergraduate")) {
+  if (reqs.some((r) => r.toLowerCase().includes("graduate") && profile?.educationLevel === "undergraduate")) {
     potentialIneligibilities.push("Opportunity may target graduate/postgraduate candidates.");
   }
 
@@ -80,7 +85,7 @@ export function generateDeterministicEvidenceAnalysis(
 
   const actionChecklist = [
     {
-      task: `Verify official application guidelines on ${opp.sourceDomain}`,
+      task: `Verify official application guidelines on ${domain}`,
       category: "eligibility" as const,
       importance: "critical" as const,
     },
@@ -90,7 +95,7 @@ export function generateDeterministicEvidenceAnalysis(
       importance: "critical" as const,
     },
     {
-      task: `Tailor resume to emphasize matching skills: ${(opp.matchBreakdown.matchedSkills.length ? opp.matchBreakdown.matchedSkills : opp.skills).slice(0, 3).join(", ")}`,
+      task: `Tailor resume to emphasize matching skills: ${(matched.length ? matched : ["relevant skills"]).slice(0, 3).join(", ")}`,
       category: "materials" as const,
       importance: "recommended" as const,
     },
@@ -101,8 +106,10 @@ export function generateDeterministicEvidenceAnalysis(
     },
   ];
 
+  const rationale = (typeof opp.matchExplanation === "string" ? opp.matchExplanation : (Array.isArray(opp.matchExplanation) ? (opp.matchExplanation as string[]).join(". ") : "")) || `Evidence-based fit assessment for ${opp.title}`;
+
   return {
-    summaryRationale: opp.matchExplanation,
+    summaryRationale: rationale,
     supportedClaims,
     unknownRequirements,
     potentialIneligibilities,
@@ -113,8 +120,8 @@ export function generateDeterministicEvidenceAnalysis(
 }
 
 /**
- * AI-powered grounded evidence analysis using the official Google GenAI SDK.
- * Strictly adheres to grounding rules: does not invent unbacked facts.
+ * Perform live grounded evidence and eligibility analysis via Gemini API
+ * Strictly constrained to grounded search text without hallucinations.
  */
 export async function analyzeOpportunityWithGemini(
   opp: Opportunity,
@@ -151,14 +158,14 @@ OPPORTUNITY DATA:
 - Title: ${opp.title}
 - Organization: ${opp.organization}
 - Category: ${opp.category}
-- Work Mode: ${opp.workMode}
-- Location: ${opp.location}
-- Source Domain: ${opp.sourceDomain}
-- Snippet & Description: ${opp.description}
+- Work Mode: ${opp.workMode || "unspecified"}
+- Location: ${opp.location || "Flexible"}
+- Source Domain: ${opp.sourceDomain || "web"}
+- Snippet & Description: ${opp.description || ""}
 - Published Deadline: ${opp.deadline || "None found in snippet"}
-- Deadline Status: ${opp.deadlineStatus}
-- Known Requirements from snippet: ${JSON.stringify(opp.requirements)}
-- Evidence Snippets: ${JSON.stringify(opp.evidenceItems.map(e => ({ claim: e.claim, snippet: e.sourceSnippet })))}
+- Deadline Status: ${opp.deadlineStatus || "unknown"}
+- Known Requirements from snippet: ${JSON.stringify(opp.requirements || [])}
+- Evidence Snippets: ${JSON.stringify((opp.evidenceItems || []).map(e => ({ claim: e.claim, snippet: e.sourceSnippet })))}
 
 Respond with a JSON object with these exact keys:
 {

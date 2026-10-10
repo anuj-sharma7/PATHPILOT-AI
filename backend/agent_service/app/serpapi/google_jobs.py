@@ -1,6 +1,6 @@
 """
 PathPilot AI - Direct SerpApi Google Jobs Integration
-Uses httpx.AsyncClient to query the SerpApi Google Jobs engine directly.
+Uses httpx.AsyncClient to query the SerpApi Google Jobs engine directly with safe error boundaries.
 """
 
 import logging
@@ -32,9 +32,10 @@ class GoogleJobsClient:
         gl: str = "in",
         **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Fetch jobs from SerpApi Google Jobs engine."""
+        """Fetch jobs from SerpApi Google Jobs engine safely."""
         if not self.api_key:
-            raise RuntimeError("SERPAPI_API_KEY is not configured.")
+            logger.warning("Google Jobs search skipped: SERPAPI_API_KEY is not configured.")
+            return {"jobs_results": [], "warning": "Credentials missing"}
 
         params: Dict[str, Any] = {
             "engine": "google_jobs",
@@ -47,7 +48,20 @@ class GoogleJobsClient:
             params["location"] = location
         params.update(kwargs)
 
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.get(SERPAPI_URL, params=params)
-            resp.raise_for_status()
-            return resp.json()
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                resp = await client.get(SERPAPI_URL, params=params)
+                if resp.status_code == 401:
+                    logger.error("SerpApi returned 401 Unauthorized. Verify your SERPAPI_API_KEY.")
+                    return {"jobs_results": [], "error": "Invalid API key"}
+                elif resp.status_code == 429:
+                    logger.error("SerpApi rate limit/quota reached (429).")
+                    return {"jobs_results": [], "error": "Quota limit reached"}
+                resp.raise_for_status()
+                return resp.json()
+        except httpx.TimeoutException:
+            logger.warning("Google Jobs query timed out.")
+            return {"jobs_results": [], "error": "Request timed out"}
+        except Exception as e:
+            logger.error("Google Jobs search failed: %s", str(e))
+            return {"jobs_results": [], "error": "Search failed"}

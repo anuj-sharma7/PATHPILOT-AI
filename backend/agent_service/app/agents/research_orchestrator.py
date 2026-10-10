@@ -78,16 +78,9 @@ class ResearchOrchestrator:
         tasks = []
         is_live = False
 
-        # Web search tasks
-        if not target_categories or any(c in target_categories for c in [
-            "scholarship",
-            "hackathon",
-            "fellowship",
-            "research",
-            "competition",
-        ]):
-            for q in plan.get("web_queries", [query])[:2]:
-                tasks.append(self._safe_web_search(q))
+        # Web search tasks (broad opportunity coverage including open-source programs, fellowships, hackathons)
+        for q in plan.get("web_queries", [query])[:2]:
+            tasks.append(self._safe_web_search(q))
 
         # News search tasks (announcements, deadline extensions)
         for q in plan.get("news_queries", [])[:1]:
@@ -209,6 +202,13 @@ class ResearchOrchestrator:
             if not title or not link:
                 continue
 
+            domain = "web"
+            try:
+                from urllib.parse import urlparse
+                domain = urlparse(link).netloc or "web"
+            except Exception:
+                pass
+
             category = _infer_category(title, snippet, default="scholarship")
             opps.append(
                 Opportunity(
@@ -217,9 +217,12 @@ class ResearchOrchestrator:
                     organization=str(source),
                     category=category,
                     location="Online / Flexible",
+                    originalUrl=link,
+                    sourceDomain=domain,
                     source_url=link,
                     snippet=snippet,
                     description=snippet,
+                    sourceEngine="google",
                     source_engine="serpapi_web_search",
                 )
             )
@@ -238,6 +241,13 @@ class ResearchOrchestrator:
             if not title or not link:
                 continue
 
+            domain = "news"
+            try:
+                from urllib.parse import urlparse
+                domain = urlparse(link).netloc or "news"
+            except Exception:
+                pass
+
             category = _infer_category(title, snippet, default="fellowship")
             opps.append(
                 Opportunity(
@@ -246,10 +256,13 @@ class ResearchOrchestrator:
                     organization=source,
                     category=category,
                     location="India / Global",
+                    originalUrl=link,
+                    sourceDomain=domain,
                     deadline=date if date else None,
                     source_url=link,
                     snippet=snippet,
                     description=snippet,
+                    sourceEngine="google_news",
                     source_engine="serpapi_news_search",
                 )
             )
@@ -277,6 +290,14 @@ class ResearchOrchestrator:
             if not title:
                 continue
 
+            domain = "jobs"
+            if link:
+                try:
+                    from urllib.parse import urlparse
+                    domain = urlparse(link).netloc or "jobs"
+                except Exception:
+                    pass
+
             is_remote = "remote" in location.lower() or "work from home" in description.lower()
             category: OpportunityCategory = "internship" if "intern" in title.lower() else "job"
 
@@ -287,11 +308,14 @@ class ResearchOrchestrator:
                     organization=company,
                     category=category,
                     location=location,
+                    originalUrl=link,
+                    sourceDomain=domain,
                     is_remote=is_remote,
-                    stipend_or_salary=schedule_type if schedule_type else None,
+                    stipendOrSalary=schedule_type if schedule_type else None,
                     source_url=link,
                     snippet=description[:240] + ("..." if len(description) > 240 else ""),
                     description=description,
+                    sourceEngine="google_jobs",
                     source_engine="serpapi_google_jobs",
                 )
             )
