@@ -10,6 +10,8 @@ import { calculateMatchScore } from "../src/lib/matching/score";
 import { SerpApiError } from "../src/lib/serpapi/client";
 import { SearchOpportunitiesRequestSchema, StudentProfileSchema } from "../src/lib/schemas";
 import { DEMO_OPPORTUNITIES } from "../src/lib/demo/demo-data";
+import { generateGoogleCalendarUrl, generateIcsContent } from "../src/lib/utils/calendar";
+import { generateDeterministicPitch } from "../src/lib/ai/pitch-generator";
 import { StudentProfile, Opportunity } from "../src/types";
 
 describe("PathPilot AI Test Suite", () => {
@@ -228,6 +230,47 @@ describe("PathPilot AI Test Suite", () => {
 
     const parsed = StudentProfileSchema.safeParse(profile);
     assert.strictEqual(parsed.success, true);
+  });
+
+  // Test 16: Calendar export URL and iCal generation
+  test("16. Calendar export URL and iCal generation", () => {
+    const opp = DEMO_OPPORTUNITIES[0]; // GSoC with confirmed deadline April 14, 2026
+    const gCalUrl = generateGoogleCalendarUrl(opp);
+    assert.ok(gCalUrl, "Google Calendar URL should be generated");
+    assert.ok(gCalUrl.includes("calendar.google.com"));
+    assert.ok(gCalUrl.includes(encodeURIComponent(opp.organization)));
+
+    const icsContent = generateIcsContent(opp);
+    assert.ok(icsContent.includes("BEGIN:VCALENDAR"));
+    assert.ok(icsContent.includes("END:VCALENDAR"));
+    assert.ok(icsContent.includes(opp.title));
+  });
+
+  // Test 17: Grounded pitch & cover letter generation
+  test("17. Grounded pitch & tailored application materials generation", () => {
+    const sampleProfile: StudentProfile = {
+      id: "pitch-user",
+      educationLevel: "undergraduate",
+      degree: "B.Tech",
+      branch: "Computer Science",
+      graduationYear: 2026,
+      skills: ["Python", "Git", "React"],
+      interests: ["Open Source"],
+      preferredCategories: ["fellowship"],
+      preferredLocations: ["Remote"],
+      workMode: "remote",
+      experienceLevel: "student",
+      updatedAt: new Date().toISOString(),
+    };
+
+    const opp = DEMO_OPPORTUNITIES[0];
+    const pitch = generateDeterministicPitch(opp, sampleProfile);
+
+    assert.ok(pitch.headline.includes("B.Tech"));
+    assert.ok(pitch.coverLetterPitch.includes(opp.organization));
+    assert.ok(pitch.coverLetterPitch.includes("Computer Science"));
+    assert.strictEqual(pitch.resumeBulletPoints.length, 3);
+    assert.strictEqual(pitch.talkingPointsForInterviews.length, 3);
   });
 
 });

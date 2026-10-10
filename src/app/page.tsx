@@ -199,6 +199,61 @@ export default function OverviewPage() {
           </div>
         </div>
 
+        {/* Application Funnel & Quick Tools */}
+        <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-blue-600" />
+                Application Pipeline & Readiness Funnel
+              </h3>
+              <p className="text-xs text-slate-500">Track your transition from search discovery to completed submissions</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Link
+                href="/compare"
+                className="px-3 py-1.5 rounded-lg bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-semibold flex items-center gap-1.5 transition"
+              >
+                <span>Compare Shortlist</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+              <Link
+                href="/planner"
+                className="px-3 py-1.5 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-xs font-semibold flex items-center gap-1.5 transition"
+              >
+                <span>View Action Plan</span>
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1 text-xs">
+            <div className="p-3 rounded-lg bg-slate-50 border border-slate-200/60">
+              <div className="flex justify-between font-bold text-slate-800 mb-1">
+                <span>1. Shortlisted (Interested)</span>
+                <span>{savedOpps.filter((s) => s.applicationStatus === "interested").length}</span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-tight">Verified opportunities saved for preliminary eligibility check.</p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-blue-50/60 border border-blue-200">
+              <div className="flex justify-between font-bold text-blue-900 mb-1">
+                <span>2. In Preparation</span>
+                <span>{savedOpps.filter((s) => s.applicationStatus === "preparing").length}</span>
+              </div>
+              <p className="text-[11px] text-blue-700 leading-tight">Active drafting of resumes, essays, and required transcripts.</p>
+            </div>
+
+            <div className="p-3 rounded-lg bg-emerald-50/60 border border-emerald-200">
+              <div className="flex justify-between font-bold text-emerald-900 mb-1">
+                <span>3. Submitted (Applied)</span>
+                <span>{totalApplied}</span>
+              </div>
+              <p className="text-[11px] text-emerald-700 leading-tight">Completed applications awaiting interview / review cycle.</p>
+            </div>
+          </div>
+        </div>
+
         {/* Profile Status Banner */}
         {profile && (
           <div className="p-4 rounded-xl bg-slate-900 text-white flex items-center justify-between flex-wrap gap-4 shadow-sm">

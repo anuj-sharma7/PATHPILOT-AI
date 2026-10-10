@@ -17,9 +17,13 @@ Standard search engines return links without understanding the student's backgro
 For every discovered opportunity, PathPilot AI provides:
 1. **Traceable Source Evidence**: Audited claims grouped into **Supported** (with source snippets), **Needs Verification** (unknown GPAs or batch restrictions), and **Conflicting** criteria.
 2. **Deterministic, Explainable Match Breakdown**: Weighted scoring (Skills: 35%, Eligibility: 30%, Interests: 20%, Location: 10%, Experience: 5%) distinguishing candidate fit from admission probability.
-3. **Deadline Intelligence**: Clear distinction between verified dates, rolling reviews, and unknown deadlines.
+3. **Deadline Intelligence & Calendar Sync**: Clear distinction between verified dates, rolling reviews, and unknown deadlines with 1-click **Google Calendar** and **iCal (.ics)** sync.
 4. **Actionable Application Planner**: Automatically generated preparation checklists tailored to explicit requirements.
-5. **Direct Source Verification**: Clickable links to primary employer and program pages.
+5. **Tailored Application Pitch & Resume Generator**: Custom 3-paragraph cover letter pitches, targeted resume bullets, and interview talking points grounded in the retrieved posting.
+6. **Side-by-Side Opportunity Comparison Matrix**: Compare 2–3 shortlisted opportunities head-to-head across match score, compensation, requirements, and deadlines.
+7. **Opportunity Dossier Export**: Generate and copy comprehensive Markdown dossiers to share with academic mentors or placement coordinators.
+8. **AI Query Assistant**: Dynamic query expansion suggestions tailored to graduation batch and academic discipline.
+9. **Direct Source Verification**: Clickable links to primary employer and program pages.
 
 ---
 
@@ -143,7 +147,7 @@ NEXT_PUBLIC_APP_MODE=live
 ```bash
 npm test
 ```
-*Output: 15/15 tests passing across normalization, deduplication, scoring, error handling, and schemas.*
+*Output: 17/17 tests passing across normalization, deduplication, scoring, calendar export, tailored pitch generation, and schemas.*
 
 ### 4. Build & Start Production Server
 ```bash
@@ -207,7 +211,7 @@ PathPilot AI features a strict separation between **Live Mode** and **Verified D
 | **Research Support (Scholar)** | **Passed** | Dedicated `google_scholar` workflow with citation counts |
 | **Security & Key Handling** | **Passed** | Zero secrets in client-side code; `/api/health` safe diagnostics |
 | **Separate Demo Mode** | **Passed** | Clearly labeled and toggleable |
-| **Automated Tests Passing** | **Passed** | 15/15 unit tests executed and passed via `npm test` |
+| **Automated Tests Passing** | **Passed** | 17/17 unit tests executed and passed via `npm test` |
 | **Production Build Passing** | **Passed** | `npm run build` completed with 0 errors |
 
 ---

@@ -13,7 +13,8 @@ import {
   Sparkles,
   ExternalLink,
   ShieldCheck,
-  FlaskConical
+  FlaskConical,
+  Scale
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { loadProfile, loadSettings, StudentProfile, AppSettings } from "@/lib/storage/localStorage";
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { href: "/discover", label: "Discover", icon: Compass },
   { href: "/saved", label: "Saved Opportunities", icon: Bookmark },
   { href: "/planner", label: "Application Planner", icon: ClipboardCheck },
+  { href: "/compare", label: "Compare Matrix", icon: Scale },
   { href: "/research", label: "Research Support", icon: FlaskConical },
   { href: "/profile", label: "Profile", icon: User },
   { href: "/settings", label: "Settings & Health", icon: Settings },

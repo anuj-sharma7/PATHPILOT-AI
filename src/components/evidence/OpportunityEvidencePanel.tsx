@@ -17,10 +17,17 @@ import {
   Layers, 
   FileCheck2,
   ListTodo,
-  Loader2
+  Loader2,
+  CalendarPlus,
+  Download,
+  Copy,
+  Check,
+  PenTool,
+  Share2
 } from "lucide-react";
 import { Opportunity, StudentProfile } from "@/types";
 import { isOpportunitySaved, saveOpportunity, removeSavedOpportunity } from "@/lib/storage/localStorage";
+import { generateGoogleCalendarUrl, generateIcsContent, generateOpportunityDossierMarkdown } from "@/lib/utils/calendar";
 
 interface OpportunityEvidencePanelProps {
   opportunity: Opportunity;
@@ -30,13 +37,61 @@ interface OpportunityEvidencePanelProps {
 }
 
 export function OpportunityEvidencePanel({ opportunity, profile, onClose, onSaveChanged }: OpportunityEvidencePanelProps) {
-  const [activeTab, setActiveTab] = useState<"evidence" | "match" | "ai_analysis">("evidence");
+  const [activeTab, setActiveTab] = useState<"evidence" | "match" | "ai_analysis" | "pitch">("evidence");
   const [saved, setSaved] = useState<boolean>(() => isOpportunitySaved(opportunity.id));
   
   // AI analysis state
   const [analyzing, setAnalyzing] = useState(false);
   const [aiAnalysis, setAiAnalysis] = useState<any | null>(null);
   const [aiError, setAiError] = useState<string | null>(null);
+
+  // Pitch generation state
+  const [pitchLoading, setPitchLoading] = useState(false);
+  const [pitchResult, setPitchResult] = useState<any | null>(null);
+  const [pitchError, setPitchError] = useState<string | null>(null);
+
+  // Copy feedback state
+  const [copiedDossier, setCopiedDossier] = useState(false);
+  const [copiedPitch, setCopiedPitch] = useState(false);
+
+  const handleCopyDossier = () => {
+    const md = generateOpportunityDossierMarkdown(opportunity);
+    navigator.clipboard.writeText(md);
+    setCopiedDossier(true);
+    setTimeout(() => setCopiedDossier(false), 2500);
+  };
+
+  const handleDownloadIcs = () => {
+    const icsData = generateIcsContent(opportunity);
+    const blob = new Blob([icsData], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `${opportunity.id}-deadline.ics`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleRunPitchGenerator = async () => {
+    setPitchLoading(true);
+    setPitchError(null);
+    try {
+      const res = await fetch("/api/opportunities/pitch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ opportunity, profile }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to generate pitch");
+      setPitchResult(data.pitch);
+      setActiveTab("pitch");
+    } catch (e: any) {
+      setPitchError(e.message || "Failed to generate pitch");
+    } finally {
+      setPitchLoading(false);
+    }
+  };
 
   const handleToggleSave = () => {
     if (saved) {
@@ -119,6 +174,19 @@ export function OpportunityEvidencePanel({ opportunity, profile, onClose, onSave
 
           <div className="flex items-center gap-2">
             <button
+              onClick={handleCopyDossier}
+              className={`p-2 rounded-lg border text-xs font-semibold flex items-center gap-1.5 transition ${
+                copiedDossier
+                  ? "bg-emerald-50 border-emerald-300 text-emerald-700"
+                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-100"
+              }`}
+              title="Copy markdown dossier for mentors or advisors"
+            >
+              {copiedDossier ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+              <span className="hidden sm:inline">{copiedDossier ? "Dossier Copied!" : "Export Dossier"}</span>
+            </button>
+
+            <button
               onClick={handleToggleSave}
               className={`p-2 rounded-lg border transition ${
                 saved 
@@ -140,10 +208,10 @@ export function OpportunityEvidencePanel({ opportunity, profile, onClose, onSave
         </div>
 
         {/* Tab Navigation */}
-        <div className="flex border-b border-slate-200 px-6 bg-white gap-6">
+        <div className="flex border-b border-slate-200 px-6 bg-white gap-6 overflow-x-auto">
           <button
             onClick={() => setActiveTab("evidence")}
-            className={`py-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition ${
+            className={`py-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition shrink-0 ${
               activeTab === "evidence"
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-slate-500 hover:text-slate-800"
@@ -154,7 +222,7 @@ export function OpportunityEvidencePanel({ opportunity, profile, onClose, onSave
           </button>
           <button
             onClick={() => setActiveTab("match")}
-            className={`py-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition ${
+            className={`py-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition shrink-0 ${
               activeTab === "match"
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-slate-500 hover:text-slate-800"
@@ -168,7 +236,7 @@ export function OpportunityEvidencePanel({ opportunity, profile, onClose, onSave
               setActiveTab("ai_analysis");
               if (!aiAnalysis && !analyzing) handleRunAiAnalysis();
             }}
-            className={`py-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition ${
+            className={`py-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition shrink-0 ${
               activeTab === "ai_analysis"
                 ? "border-blue-600 text-blue-600"
                 : "border-transparent text-slate-500 hover:text-slate-800"
@@ -176,6 +244,20 @@ export function OpportunityEvidencePanel({ opportunity, profile, onClose, onSave
           >
             <Sparkles className="w-4 h-4 text-purple-600" />
             Gemini Grounding
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("pitch");
+              if (!pitchResult && !pitchLoading) handleRunPitchGenerator();
+            }}
+            className={`py-3.5 text-sm font-semibold border-b-2 flex items-center gap-2 transition shrink-0 ${
+              activeTab === "pitch"
+                ? "border-blue-600 text-blue-600"
+                : "border-transparent text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            <PenTool className="w-4 h-4 text-emerald-600" />
+            Pitch & Resume
           </button>
         </div>
 
@@ -276,7 +358,7 @@ export function OpportunityEvidencePanel({ opportunity, profile, onClose, onSave
                   <Clock className="w-4 h-4 text-blue-600" />
                   Deadline Intelligence
                 </div>
-                <div className="flex items-center gap-3 text-xs">
+                <div className="flex items-center gap-3 text-xs flex-wrap">
                   <span className="font-medium text-slate-700">Published Status:</span>
                   <span className="px-2 py-0.5 rounded font-bold text-xs bg-slate-100 text-slate-800 capitalize">
                     {opportunity.deadlineStatus}
@@ -288,6 +370,30 @@ export function OpportunityEvidencePanel({ opportunity, profile, onClose, onSave
                 <p className="text-xs text-slate-500 leading-relaxed">
                   {opportunity.deadlineNotes || "Always confirm deadline countdown directly on employer or program portal."}
                 </p>
+
+                {/* Calendar Export Integration */}
+                {opportunity.deadline && (
+                  <div className="pt-2 border-t border-slate-100 flex items-center gap-2 flex-wrap">
+                    {generateGoogleCalendarUrl(opportunity) && (
+                      <a
+                        href={generateGoogleCalendarUrl(opportunity)!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="px-3 py-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 font-semibold text-[11px] flex items-center gap-1.5 transition border border-blue-200/60"
+                      >
+                        <CalendarPlus className="w-3.5 h-3.5" />
+                        <span>Add to Google Calendar</span>
+                      </a>
+                    )}
+                    <button
+                      onClick={handleDownloadIcs}
+                      className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] flex items-center gap-1.5 transition"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>Download iCal (.ics)</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
             </div>
@@ -518,6 +624,117 @@ export function OpportunityEvidencePanel({ opportunity, profile, onClose, onSave
                   >
                     <Sparkles className="w-4 h-4" />
                     Analyze with Gemini
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: APPLICATION PITCH & RESUME FIT */}
+          {activeTab === "pitch" && (
+            <div className="space-y-6 text-xs">
+              {pitchLoading ? (
+                <div className="py-16 text-center space-y-3">
+                  <Loader2 className="w-8 h-8 text-emerald-600 animate-spin mx-auto" />
+                  <div className="font-bold text-slate-800 text-sm">Drafting Tailored Application Materials...</div>
+                  <p className="text-slate-500 max-w-sm mx-auto">
+                    Synthesizing your matched skills and degree credentials into a tailored cover letter pitch and resume talking points.
+                  </p>
+                </div>
+              ) : pitchError ? (
+                <div className="p-4 rounded-xl border border-rose-200 bg-rose-50 text-rose-900 space-y-2">
+                  <div className="font-bold">Failed to Generate Pitch</div>
+                  <p>{pitchError}</p>
+                  <button
+                    onClick={handleRunPitchGenerator}
+                    className="px-3 py-1.5 bg-rose-600 text-white rounded font-semibold text-xs hover:bg-rose-700"
+                  >
+                    Retry Pitch Generation
+                  </button>
+                </div>
+              ) : pitchResult ? (
+                <div className="space-y-5">
+                  {/* Headline Banner */}
+                  <div className="p-4 rounded-xl border border-emerald-200 bg-emerald-50/50 space-y-1">
+                    <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-800">
+                      Tailored Candidate Value Proposition
+                    </div>
+                    <div className="font-bold text-slate-900 text-sm leading-snug">
+                      {pitchResult.headline}
+                    </div>
+                  </div>
+
+                  {/* 3-Paragraph Cover Letter Pitch */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-bold text-slate-900 text-sm flex items-center gap-1.5">
+                        <PenTool className="w-4 h-4 text-emerald-600" />
+                        Tailored Cover Letter Pitch
+                      </h4>
+                      <button
+                        onClick={() => {
+                          navigator.clipboard.writeText(pitchResult.coverLetterPitch);
+                          setCopiedPitch(true);
+                          setTimeout(() => setCopiedPitch(false), 2000);
+                        }}
+                        className="px-2.5 py-1 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold text-[11px] flex items-center gap-1 transition"
+                      >
+                        {copiedPitch ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                        <span>{copiedPitch ? "Copied!" : "Copy Pitch"}</span>
+                      </button>
+                    </div>
+                    <div className="p-3 rounded-lg bg-slate-50 border border-slate-200 text-slate-700 whitespace-pre-line leading-relaxed font-sans text-xs">
+                      {pitchResult.coverLetterPitch}
+                    </div>
+                  </div>
+
+                  {/* Targeted Resume Bullets */}
+                  <div className="p-4 rounded-xl border border-slate-200 bg-white space-y-2">
+                    <h4 className="font-bold text-slate-900 text-sm">
+                      Recommended Resume Action Bullets
+                    </h4>
+                    <ul className="space-y-1.5 list-disc pl-4 text-slate-700">
+                      {pitchResult.resumeBulletPoints?.map((bullet: string, i: number) => (
+                        <li key={i} className="leading-relaxed">{bullet}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Tactical Interview Talking Points */}
+                  <div className="p-4 rounded-xl border border-blue-200 bg-blue-50/40 space-y-2">
+                    <h4 className="font-bold text-blue-950 text-sm">
+                      Tactical Interview Talking Points
+                    </h4>
+                    <ul className="space-y-1.5 list-disc pl-4 text-blue-900">
+                      {pitchResult.talkingPointsForInterviews?.map((point: string, i: number) => (
+                        <li key={i} className="leading-relaxed">{point}</li>
+                      ))}
+                    </ul>
+                  </div>
+
+                  {/* Portfolio Project Ideas */}
+                  <div className="p-4 rounded-xl border border-purple-200 bg-purple-50/40 space-y-2">
+                    <h4 className="font-bold text-purple-950 text-sm">
+                      Recommended Portfolio Project Highlights
+                    </h4>
+                    <ul className="space-y-1.5 list-disc pl-4 text-purple-900">
+                      {pitchResult.suggestedPortfolioProjects?.map((proj: string, i: number) => (
+                        <li key={i} className="leading-relaxed">{proj}</li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-12 text-center space-y-3">
+                  <p className="text-slate-600 text-xs">
+                    Generate an instant customized cover letter pitch, targeted resume bullets, and interview defense points grounded in this posting.
+                  </p>
+                  <button
+                    onClick={handleRunPitchGenerator}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg font-semibold text-xs hover:bg-emerald-700 transition inline-flex items-center gap-2 shadow-sm"
+                  >
+                    <PenTool className="w-4 h-4" />
+                    Generate Application Pitch
                   </button>
                 </div>
               )}

@@ -291,6 +291,33 @@ function DiscoverContent() {
                 </button>
               ))}
             </div>
+
+            {/* AI Query Assistant Chips */}
+            <div className="pt-2 border-t border-slate-100 flex items-center gap-2 flex-wrap text-xs">
+              <span className="text-slate-400 font-medium flex items-center gap-1 shrink-0">
+                <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                Query Assistant:
+              </span>
+              {[
+                `Class of ${profile?.graduationYear || 2026} Software Engineer Internships India`,
+                `${profile?.branch || "Computer Science"} undergraduate research fellowships`,
+                "Smart India Hackathon 2026 problem statements",
+                "Google Summer of Code 2026 contributors",
+                "Machine Learning fellowships paid India",
+              ].map((sug, i) => (
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => {
+                    setQuery(sug);
+                    executeSearch(sug, selectedCategory, location, settings?.mode, profile);
+                  }}
+                  className="px-2.5 py-1 rounded bg-slate-100 hover:bg-blue-50 hover:text-blue-700 text-slate-600 transition text-[11px]"
+                >
+                  {sug}
+                </button>
+              ))}
+            </div>
           </form>
         </div>
 
