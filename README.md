@@ -214,3 +214,4 @@ PathPilot AI features a strict separation between **Live Mode** and **Verified D
 
 ## License
 MIT License. Built for the SerpApi India Hackathon 2026.
+
