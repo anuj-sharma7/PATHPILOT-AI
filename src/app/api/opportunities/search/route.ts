@@ -84,6 +84,86 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Attempt research orchestration via Python FastAPI agent service (serpapi-search-tools)
+    const agentUrl = process.env.RESEARCH_AGENT_URL || "http://127.0.0.1:8000";
+    try {
+      const agentController = new AbortController();
+      const timeoutId = setTimeout(() => agentController.abort(), 12000);
+
+      const agentRes = await fetch(`${agentUrl}/api/research/search`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          query,
+          categories: categories && categories.length > 0 ? categories : undefined,
+          location: location || undefined,
+          profile: userProfile ? {
+            degree: userProfile.degree,
+            field_of_study: userProfile.branch,
+            year_of_study: userProfile.graduationYear ? (2028 - userProfile.graduationYear + 1) : 3,
+            skills: userProfile.skills || [],
+            interests: userProfile.interests || [],
+            location_preference: userProfile.preferredLocations?.[0] || location || "India",
+          } : undefined,
+        }),
+        signal: agentController.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (agentRes.ok) {
+        const agentData = await agentRes.json();
+        if (agentData && Array.isArray(agentData.opportunities) && agentData.opportunities.length > 0) {
+          const mappedResults: Opportunity[] = agentData.opportunities.map((opp: any) => ({
+            id: opp.id,
+            title: opp.title,
+            organization: opp.organization,
+            category: opp.category,
+            location: opp.location || "Flexible",
+            workMode: opp.is_remote ? "remote" : "in-person",
+            deadline: opp.deadline,
+            stipendOrSalary: opp.stipend_or_salary,
+            sourceEngine: opp.source_engine || "serpapi_search_tools",
+            sourceSnippet: opp.snippet,
+            originalUrl: opp.source_url,
+            applyUrl: opp.source_url,
+            descriptionSnippet: opp.snippet || opp.description || "",
+            fullDescription: opp.description,
+            dataMode: "live" as const,
+            matchScore: opp.match_score || 75,
+            matchExplanation: opp.evidence?.match_reasons || [],
+            missingRequirements: opp.evidence?.missing_information || [],
+            evidence: opp.evidence ? {
+              matchReasons: opp.evidence.match_reasons || [],
+              verifiedRequirements: opp.evidence.verified_requirements || [],
+              missingInformation: opp.evidence.missing_information || [],
+              potentialDisqualifiers: opp.evidence.potential_disqualifiers || [],
+              nextSteps: opp.evidence.next_steps || [],
+              deadlineConfirmed: opp.evidence.deadline_confirmed || false,
+              sources: opp.evidence.sources || [opp.source_url],
+            } : undefined,
+            retrievedAt: new Date().toISOString(),
+          }));
+
+          return NextResponse.json({
+            dataMode: "live",
+            query,
+            resultCount: mappedResults.length,
+            enginesUsed: agentData.metadata?.engines_used || ["serpapi-search-tools"],
+            results: mappedResults.slice(0, limit),
+            metadata: {
+              ...agentData.metadata,
+              orchestrator: "python_fastapi_agent_service",
+              serpapi_package: "serpapi-search-tools",
+            },
+            retrievedAt: new Date().toISOString(),
+          });
+        }
+      }
+    } catch {
+      // Python agent service not running or timed out; seamlessly fallback to direct Next.js SerpApi client
+    }
+
     const enginesUsed: string[] = [];
     const rawResults: Opportunity[] = [];
     const errors: Array<{ engine: string; error: string }> = [];

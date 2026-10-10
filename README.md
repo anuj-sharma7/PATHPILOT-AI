@@ -61,11 +61,12 @@ For every discovered opportunity, PathPilot AI provides:
 
 | Technology / Search Engine | Endpoint / Engine | Implemented & Tested? | Consuming Feature | Relevant Returned Fields | Why the Data Matters to Students |
 | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Official `serpapi-search-tools`** | `web_search()`, `news_search()` | **Yes — Implemented & Tested** | Python FastAPI Research Agent (`backend/agent_service`) | `title`, `link`, `snippet`, `source`, `date` | Provides official tool calling primitives with compact JSON output for program, scholarship, and news search. |
 | **SerpApi Google Search** | `engine=google` | **Yes — Implemented & Tested** | Discover & Opportunity Evidence Panel | `title`, `link`, `snippet`, `date`, `source`, `rich_snippet` | Uncovers non-job opportunities (scholarships, fellowships, hackathons) with direct evidence snippets. |
 | **SerpApi Google Jobs** | `engine=google_jobs` | **Yes — Implemented & Tested** | Discover (Jobs & Internships) | `title`, `company_name`, `location`, `description`, `job_highlights`, `apply_options`, `detected_extensions` | Provides authentic employer postings, work mode (remote/on-site), stipends, and apply URLs. |
 | **SerpApi Google News** | `engine=google_news` | **Yes — Implemented & Tested** | Discover (Recent announcements) | `title`, `link`, `snippet`, `date`, `source` | Catches timely notifications and government initiative launches. |
 | **SerpApi Google Scholar** | `engine=google_scholar` | **Yes — Implemented & Tested** | Research Support Page | `title`, `link`, `snippet`, `authors`, `publication_info`, `cited_by` | Provides academic literature citations for research fellowship proposals. |
-| **Google GenAI SDK** | `models.generateContent` (`gemini-2.5-flash`) | **Yes — Implemented & Tested** | Gemini Grounding in Evidence Panel | Structured JSON schema (`supportedClaims`, `unknownRequirements`, `actionChecklist`) | Cross-references student profile against retrieved snippets to identify hidden gaps and create actionable checklists. |
+| **Google GenAI SDK** | `models.generateContent` (`gemini-2.5-flash`) | **Yes — Implemented & Tested** | Gemini Grounding in Evidence Panel & Research Planner | Structured JSON schema (`supportedClaims`, `unknownRequirements`, `actionChecklist`) | Cross-references student profile against retrieved snippets to identify hidden gaps and create actionable checklists. |
 | **Browser LocalStorage** | Typed storage wrapper | **Yes — Implemented & Tested** | Profile, Saved Applications, Application Planner | Student credentials, application status (`Interested`, `Preparing`, `Applied`), checklists | Maintains private applicant data across refreshes without requiring external cloud databases or storing API secrets. |
 
 ---
@@ -73,31 +74,45 @@ For every discovered opportunity, PathPilot AI provides:
 ## 4. Architecture & Data Flow
 
 ```
-[ Student Profile ] ---> [ Query Planner ]
-                                |
-                                v
-               [ SerpApi Multi-Engine Dispatcher ]
-            /                   |                  \
-   (engine=google)     (engine=google_jobs)   (engine=google_news)
-           \                    |                  /
-            v                   v                 v
-            [ Response Normalizer & URL Deduplicator ]
-                                |
-                                v
-             [ Deterministic Scoring & Matching Engine ]
-            (Skills: 35%, Eligibility: 30%, Interests: 20%)
-                                |
-                                v
-               [ Grounded Opportunity Cards ]
-                                |
-                                v
-                [ Opportunity Evidence Panel ]
-             /                                 \
- [ Traceable Evidence Audit ]        [ Gemini GenAI Grounding ]
- (Supported, Unknown, Conflicting)    (Structured Gaps & Roadmap)
-                                |
-                                v
-           [ Saved Tracker & Application Planner ]
+                      +-----------------------------+
+                      |   Student Profile Context   |
+                      +--------------+--------------+
+                                     |
+                                     v
+                      +-----------------------------+
+                      |   Next.js App Router (UI)   |
+                      +--------------+--------------+
+                                     | (Internal Proxy)
+                                     v
+                      +-----------------------------+
+                      | Python FastAPI Agent Service|
+                      |   (backend/agent_service)   |
+                      +--------------+--------------+
+                                     |
+             +-----------------------+-----------------------+
+             |                       |                       |
+             v                       v                       v
+    [web_search()]            [news_search()]         [Google Jobs API]
+  (serpapi-search-tools)   (serpapi-search-tools)    (Direct SerpApi Client)
+             |                       |                       |
+             +-----------------------+-----------------------+
+                                     |
+                                     v
+                      +-----------------------------+
+                      | Normalizer & Deduplicator   |
+                      +--------------+--------------+
+                                     |
+                                     v
+                      +-----------------------------+
+                      | Gemini Evidence Grounding   |
+                      | & Profile Fit Evaluator     |
+                      +--------------+--------------+
+                                     |
+                                     v
+                      +-----------------------------+
+                      | Opportunity Evidence Panel  |
+                      |  & Application Planner      |
+                      +-----------------------------+
 ```
 
 ---
@@ -115,42 +130,63 @@ For every discovered opportunity, PathPilot AI provides:
 
 ### Prerequisites
 - Node.js 18+ (tested on Node.js v24)
+- Python 3.10+ (tested on Python 3.14)
 - npm 9+
 
-### 1. Clone & Install Dependencies
+### 1. Frontend Setup (Next.js)
 ```bash
-git clone <repo-url>
-cd pathpilot-ai
+git clone https://github.com/anuj-sharma7/PATHPILOT-AI
+cd PATHPILOT-AI
 npm install
 ```
 
-### 2. Configure Environment Variables
-Copy `.env.example` to `.env.local`:
+### 2. Backend Research Agent Setup (`serpapi-search-tools`)
 ```bash
-cp .env.example .env.local
+cd backend/agent_service
+python -m venv .venv
+# Windows:
+.venv\Scripts\activate
+# Linux/macOS:
+source .venv/bin/activate
+
+pip install -r requirements.txt
 ```
 
-Fill in your API credentials:
-```env
-# Required for Live Search Mode:
+### 3. Configure Environment Variables
+Copy `.env.example` in both root and `backend/agent_service`:
+```bash
+# Root directory (.env.local):
 SERPAPI_API_KEY=your_serpapi_key_here
-
-# Optional (enables AI evidence analysis; deterministic fallback is active if unset):
 GEMINI_API_KEY=your_gemini_api_key_here
 GEMINI_MODEL=gemini-2.5-flash
-
-# Default App Mode ('live' or 'demo'):
+RESEARCH_AGENT_URL=http://127.0.0.1:8000
 NEXT_PUBLIC_APP_MODE=live
+
+# Backend directory (.env):
+SERPAPI_API_KEY=your_serpapi_key_here
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-2.5-flash
 ```
 
-### 3. Run Automated Tests
+### 4. Run Automated Tests
 ```bash
+# Frontend test suite:
 npm test
-```
-*Output: 17/17 tests passing across normalization, deduplication, scoring, calendar export, tailored pitch generation, and schemas.*
+# Output: 17/17 tests passing!
 
-### 4. Build & Start Production Server
+# Python backend test suite:
+cd backend/agent_service
+python -m pytest tests -v
+# Output: 7/7 tests passing!
+```
+
+### 5. Start the Services
 ```bash
+# Terminal 1 - Start Python Research Service (port 8000):
+cd backend/agent_service
+python run.py
+
+# Terminal 2 - Start Next.js App (port 3000):
 npm run build
 npm start
 ```
