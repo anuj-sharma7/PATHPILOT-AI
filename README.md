@@ -203,35 +203,10 @@ PathPilot AI features a strict separation between **Live Mode** and **Verified D
 
 ---
 
-## 8. Three-Minute Technical Demonstration Script
-
-- **0:00 – 0:20 | Introduction & Problem Statement**  
-  Introduce PathPilot AI: *"Students are overwhelmed with scattered listings, while generic AI chatbots hallucinate dead deadlines and requirements. PathPilot AI uses live SerpApi search to provide evidence-backed opportunity intelligence."*
-
-- **0:20 – 0:50 | Student Profile & Live Search**  
-  Navigate to **Profile** (showing B.Tech, Computer Science, skills: Python, React). Go to **Discover**, enter *"AI ML software engineering internships India 2026"*, and hit **Search Live**. Show search stages: querying Google Search & Google Jobs via SerpApi.
-
-- **0:50 – 1:20 | Real Results & Deterministic Matching**  
-  Highlight the returned cards. Point out genuine source links (Google Jobs, employer domains), work mode tags, and the **Match Score Breakdown** (Skills: 35%, Eligibility: 30%, Interests: 20%). Emphasize the disclaimer: *Match score indicates alignment, not acceptance probability.*
-
-- **1:20 – 1:50 | The Opportunity Evidence Panel**  
-  Click **"View Evidence"** on an opportunity. Walk through the 3 evidence tiers:
-  - **Supported:** Direct quotes from the live search snippet verifying title, company, and location.
-  - **Needs Verification:** Important unknown items (e.g. GPA threshold, specific batch year).
-  - **Deadline Intelligence:** Confirmed dates vs. rolling review status.
-
-- **1:50 – 2:20 | Gemini Grounding & Action Planner**  
-  Switch to **Gemini Grounding** to reveal the AI-generated gap analysis and preparation checklist. Click **"Save Opportunity"**, navigate to **Application Planner**, and show the tailored checklist (verifying degree eligibility, tailoring resume to matched skills).
-
-- **2:20 – 2:40 | Academic Research Support**  
-  Navigate to **Research Support**. Run a search query on Google Scholar to display academic literature citations and citation counts for fellowship research proposals.
-
-- **2:40 – 3:00 | Health, Telemetry & Code Quality**  
-  Navigate to **Settings & Health**. Show the `/api/health` status, request counters, zero secret exposure, and the 15 passing automated unit tests.
 
 ---
 
-## 9. Final Acceptance Verification Matrix
+## 8. Final Acceptance Verification Matrix
 
 | Requirement | Implementation Status | Evidence / Verification |
 | :--- | :---: | :--- |
